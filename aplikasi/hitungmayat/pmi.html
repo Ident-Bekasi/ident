@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESTIMATOR PMI FORENSIK | Alat Penghitung Interval Postmortem</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary: rgba(0, 180, 255, 0.85);
+            --secondary: rgba(100, 220, 255, 0.7);
+            --glass: rgba(255, 255, 255, 0.12);
+            --glass-border: rgba(255, 255, 255, 0.25);
+            --glass-highlight: rgba(255, 255, 255, 0.2);
+            --text: #e0f7ff;
+            --shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+            --transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0a0e1a, #1a2a40);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+            overflow-x: hidden;
+        }
+        
+        /* Header Styles */
+        .header {
+            width: 100%;
+            padding: 1.5rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+        }
+        
+        .logo-icon {
+            font-size: 2.5rem;
+            color: var(--primary);
+        }
+        
+        .logo-text {
+            font-size: 1.8rem;
+            font-weight: 600;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .nav-link {
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 500;
+            transition: var(--transition);
+            opacity: 0.8;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .nav-link:hover {
+            opacity: 1;
+            color: var(--primary);
+            transform: translateY(-2px);
+        }
+        
+        .container {
+            width: 95%;
+            max-width: 1400px;
+            padding: 2rem;
+            margin-top: 180px;
+            margin-bottom: 60px;
+        }
+        
+        .app-container {
+            background: var(--glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            padding: 3rem;
+            transform-style: preserve-3d;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .app-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent 0%,
+                var(--glass-highlight) 50%,
+                transparent 100%
+            );
+            transform: rotate(30deg);
+            animation: shine 8s infinite linear;
+            opacity: 0.3;
+        }
+        
+        @keyframes shine {
+            0% { transform: translateX(-100%) rotate(30deg); }
+            100% { transform: translateX(100%) rotate(30deg); }
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            opacity: 0.9;
+            font-size: 1.1rem;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+        
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .tab-btn {
+            background: rgba(0, 0, 0, 0.3);
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            color: var(--text);
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+        
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            box-shadow: 0 4px 15px rgba(0, 180, 255, 0.3);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .input-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.8rem;
+            margin-bottom: 2.5rem;
+        }
+        
+        .input-group {
+            position: relative;
+            transform-style: preserve-3d;
+            transition: var(--transition);
+        }
+        
+        .input-group:hover {
+            transform: translateY(-5px);
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 0.7rem;
+            font-weight: 500;
+            font-size: 1.05rem;
+        }
+        
+        .input-group input, .input-group select, .input-group textarea {
+            width: 100%;
+            padding: 1rem 1.2rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+        
+        .input-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .input-group input:focus, .input-group select:focus, .input-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 180, 255, 0.2);
+            transform: translateY(-3px);
+        }
+        
+        .input-group .hint {
+            font-size: 0.85rem;
+            opacity: 0.7;
+            margin-top: 0.5rem;
+            display: block;
+        }
+        
+        /* Dropdown Styles */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+            margin: 2rem auto;
+            width: 100%;
+            max-width: 300px;
+        }
+        
+        .dropdown-btn {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            padding: 1.2rem 2.5rem;
+            font-size: 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            transition: var(--transition);
+            box-shadow: 0 6px 20px rgba(0, 180, 255, 0.3);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .dropdown-btn:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 180, 255, 0.4);
+        }
+        
+        .dropdown-btn i {
+            transition: transform 0.3s;
+        }
+        
+        .dropdown-btn.open i {
+            transform: rotate(180deg);
+        }
+        
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            min-width: 100%;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 0 0 12px 12px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            border-top: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .dropdown-content a {
+            color: var(--text);
+            padding: 1rem 1.5rem;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            transition: all 0.3s;
+        }
+        
+        .dropdown-content a:hover {
+            background: rgba(0, 180, 255, 0.2);
+            color: var(--primary);
+        }
+        
+        .dropdown-content a i {
+            width: 20px;
+            text-align: center;
+        }
+        
+        .show {
+            display: block;
+        }
+        
+        /* WhatsApp Button Styles */
+        .whatsapp-btn {
+            background: linear-gradient(135deg, #25D366, #128C7E);
+            color: white;
+            border: none;
+            padding: 1rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0.5rem;
+            margin: 0;
+            transition: var(--transition);
+            box-shadow: none;
+            width: 100%;
+        }
+        
+        .whatsapp-btn:hover {
+            background: linear-gradient(135deg, #128C7E, #25D366);
+            transform: none;
+        }
+        
+        .result-container {
+            background: var(--glass);
+            border-radius: 18px;
+            padding: 2.5rem;
+            margin-top: 2rem;
+            border: 1px solid var(--glass-border);
+            display: none;
+            transform-style: preserve-3d;
+            transition: var(--transition);
+        }
+        
+        .result-container.show {
+            display: block;
+            animation: resultAppear 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        @keyframes resultAppear {
+            0% { opacity: 0; transform: translateY(30px) rotateX(15deg); }
+            100% { opacity: 1; transform: translateY(0) rotateX(0); }
+        }
+        
+        .result-title {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+            text-align: center;
+        }
+        
+        .result-value {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .result-card {
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--glass-border);
+            transition: var(--transition);
+        }
+        
+        .result-card:hover {
+            transform: translateY(-5px);
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .result-card h3 {
+            color: var(--primary);
+            margin-bottom: 0.8rem;
+            font-size: 1.2rem;
+        }
+        
+        .result-card p {
+            line-height: 1.6;
+        }
+        
+        .insect-data {
+            margin-top: 1rem;
+        }
+        
+        .insect-data p {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.3rem;
+        }
+        
+        .insect-data span:last-child {
+            font-weight: 600;
+        }
+        
+        .floating-shapes {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .shape {
+            position: absolute;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            filter: blur(30px);
+            opacity: 0.3;
+            animation: float 15s infinite linear;
+        }
+        
+        .shape:nth-child(1) {
+            width: 400px;
+            height: 400px;
+            top: 10%;
+            left: 5%;
+            background: rgba(0, 150, 255, 0.1);
+            animation-delay: 0s;
+        }
+        
+        .shape:nth-child(2) {
+            width: 300px;
+            height: 300px;
+            bottom: 15%;
+            right: 10%;
+            background: rgba(100, 200, 255, 0.1);
+            animation-delay: 3s;
+        }
+        
+        .shape:nth-child(3) {
+            width: 200px;
+            height: 200px;
+            top: 50%;
+            left: 30%;
+            background: rgba(255, 255, 255, 0.05);
+            animation-delay: 6s;
+        }
+        
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(20px, 20px) rotate(5deg); }
+            50% { transform: translate(0, 40px) rotate(0deg); }
+            75% { transform: translate(-20px, 20px) rotate(-5deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+        
+        .method-badge {
+            display: inline-block;
+            background: rgba(0, 180, 255, 0.2);
+            color: var(--primary);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* PDF Content Styles */
+        #pdfContent {
+            display: none;
+        }
+        
+        .pdf-container {
+            padding: 2rem;
+            background: white;
+            color: #333;
+            font-family: Arial, sans-serif;
+        }
+        
+        .pdf-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #25D366;
+            padding-bottom: 1rem;
+        }
+        
+        .pdf-title {
+            color: #25D366;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .pdf-subtitle {
+            color: #666;
+            font-size: 1rem;
+        }
+        
+        .pdf-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .pdf-section-title {
+            color: #25D366;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.3rem;
+        }
+        
+        .pdf-result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        
+        .pdf-result-item strong {
+            color: #555;
+        }
+        
+        .footer-note {
+            font-size: 0.8rem;
+            text-align: center;
+            margin-top: 2rem;
+            color: #777;
+        }
+        
+        /* Footer Styles */
+        .footer {
+            width: 100%;
+            padding: 1.5rem 2rem;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--glass-border);
+            text-align: center;
+            position: fixed;
+            bottom: 0;
+            z-index: 100;
+        }
+        
+        .footer-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .footer-text {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .social-links {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .social-link {
+            color: var(--text);
+            opacity: 0.7;
+            transition: var(--transition);
+        }
+        
+        .social-link:hover {
+            color: var(--primary);
+            opacity: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                width: 100%;
+                padding: 1rem;
+                margin-top: 220px;
+            }
+            
+            .app-container {
+                padding: 1.5rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .input-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .result-value {
+                font-size: 2.2rem;
+            }
+            
+            .tabs {
+                flex-wrap: wrap;
+            }
+            
+            .nav-links {
+                gap: 1rem;
+            }
+            
+            .nav-link {
+                font-size: 1rem;
+            }
+            
+            .logo-icon {
+                font-size: 2rem;
+            }
+            
+            .logo-text {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+    
+    <!-- Header Section -->
+    <header class="header">
+        <div class="logo">
+            <i class="fas fa-fingerprint logo-icon"></i>
+            <span class="logo-text">ESTIMATOR PMI FORENSIK</span>
+        </div>
+        <nav class="nav-links">
+            <a href="#" class="nav-link"><i class="fas fa-home"></i> Beranda</a>
+            <a href="#" class="nav-link"><i class="fas fa-calculator"></i> Kalkulator</a>
+            <a href="#" class="nav-link"><i class="fas fa-book"></i> Referensi</a>
+            <a href="#" class="nav-link"><i class="fas fa-question-circle"></i> Panduan</a>
+            <a href="#" class="nav-link"><i class="fas fa-envelope"></i> Kontak</a>
+        </nav>
+    </header>
+    
+    <!-- Main Content -->
+    <div class="container">
+        <div class="app-container" id="appContainer">
+            <h1>KALKULATOR INTERVAL POSTMORTEM</h1>
+            <p class="subtitle">Alat forensik canggih untuk memperkirakan waktu kematian menggunakan berbagai metode ilmiah</p>
+            
+            <div class="tabs">
+                <button class="tab-btn active" onclick="openTab('basic')">Parameter Dasar</button>
+                <button class="tab-btn" onclick="openTab('environment')">Lingkungan</button>
+                <button class="tab-btn" onclick="openTab('entomology')">Entomologi</button>
+                <button class="tab-btn" onclick="openTab('biochemical')">Biokimia</button>
+            </div>
+            
+            <div id="basic" class="tab-content active">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="bodyTemp">Suhu Tubuh Saat Ini (°C)</label>
+                        <input type="number" id="bodyTemp" step="0.1" placeholder="contoh: 25.5">
+                        <span class="hint">Suhu tubuh normal hidup: ~37°C</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="ambientTemp">Suhu Lingkungan (°C)</label>
+                        <input type="number" id="ambientTemp" step="0.1" placeholder="contoh: 20.0">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="weight">Berat Badan (kg)</label>
+                        <input type="number" id="weight" placeholder="contoh: 70">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="gender">Jenis Kelamin</label>
+                        <select id="gender">
+                            <option value="male">Laki-laki</option>
+                            <option value="female">Perempuan</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="age">Usia (tahun)</label>
+                        <input type="number" id="age" placeholder="contoh: 45">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="clothing">Jenis Pakaian</label>
+                        <select id="clothing">
+                            <option value="naked">Minimal/Tanpa Pakaian</option>
+                            <option value="light">Pakaian Tipis</option>
+                            <option value="medium" selected>Pakaian Sedang</option>
+                            <option value="heavy">Pakaian Tebal</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="livor">Status Livor Mortis</label>
+                        <select id="livor">
+                            <option value="none">Belum Muncul</option>
+                            <option value="beginning">Awal (2-4 jam)</option>
+                            <option value="fixed">Tertetap (8-12 jam)</option>
+                            <option value="advanced">Lanjut (12+ jam)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="rigor">Status Rigor Mortis</label>
+                        <select id="rigor">
+                            <option value="none">Belum Muncul</option>
+                            <option value="beginning">Awal (2-6 jam)</option>
+                            <option value="full">Penuh (12-24 jam)</option>
+                            <option value="released">Lepas (24-48 jam)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="environment" class="tab-content">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="humidity">Kelembaban Relatif (%)</label>
+                        <input type="number" id="humidity" min="0" max="100" placeholder="contoh: 60">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="location">Lokasi Tubuh</label>
+                        <select id="location">
+                            <option value="indoors">Dalam Ruangan</option>
+                            <option value="outdoors" selected>Luar Ruangan</option>
+                            <option value="water">Dalam Air</option>
+                            <option value="buried">Terkubur</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="sunExposure">Paparan Sinar Matahari</label>
+                        <select id="sunExposure">
+                            <option value="full">Terpapar Penuh</option>
+                            <option value="partial">Sebagian Terpapar</option>
+                            <option value="shade" selected>Teduh</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="weather">Cuaca Terkini</label>
+                        <select id="weather">
+                            <option value="dry">Kering</option>
+                            <option value="humid">Lembab</option>
+                            <option value="rain" selected>Hujan</option>
+                            <option value="snow">Salju</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="airflow">Aliran Udara</label>
+                        <select id="airflow">
+                            <option value="none">Tidak Ada</option>
+                            <option value="light">Angin Ringan</option>
+                            <option value="moderate" selected>Angin Sedang</option>
+                            <option value="strong">Angin Kencang</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="entomology" class="tab-content">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="insectType">Spesies Serangga Dominan</label>
+                        <select id="insectType">
+                            <option value="none">Tidak Ditemukan</option>
+                            <option value="calliphoridae">Lalat Blow (Calliphoridae)</option>
+                            <option value="muscidae" selected>Lalat Rumah (Muscidae)</option>
+                            <option value="sarcophagidae">Lalat Daging (Sarcophagidae)</option>
+                            <option value="coleoptera">Kumbang (Coleoptera)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="insectStage">Tahap Perkembangan Serangga</label>
+                        <select id="insectStage">
+                            <option value="none">Tidak Ada</option>
+                            <option value="eggs">Telur</option>
+                            <option value="larvae1">Larva Instar 1</option>
+                            <option value="larvae2" selected>Larva Instar 2</option>
+                            <option value="larvae3">Larva Instar 3</option>
+                            <option value="pupae">Kepompong</option>
+                            <option value="adults">Lalat Dewasa</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="insectSize">Ukuran Larva (mm)</label>
+                        <input type="number" id="insectSize" placeholder="contoh: 10">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="insectCount">Tingkat Aktivitas Serangga</label>
+                        <select id="insectCount">
+                            <option value="none">Tidak Ada</option>
+                            <option value="few">Sedikit (1-10 spesimen)</option>
+                            <option value="moderate" selected>Moderat (10-50)</option>
+                            <option value="many">Banyak (50-100)</option>
+                            <option value="massive">Sangat Banyak (100+)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="insectNotes">Catatan Entomologi</label>
+                        <textarea id="insectNotes" placeholder="Observasi tambahan tentang aktivitas serangga"></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="biochemical" class="tab-content">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="potassium">Kalium Vitreous (mmol/L)</label>
+                        <input type="number" id="potassium" step="0.1" placeholder="contoh: 15.2">
+                        <span class="hint">Kisaran normal pada hidup: 3.5-5.0 mmol/L</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="pH">Tingkat pH Jaringan</label>
+                        <input type="number" id="pH" step="0.1" min="0" max="14" placeholder="contoh: 6.2">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="decompStage">Tahap Dekomposisi</label>
+                        <select id="decompStage">
+                            <option value="fresh">Segar (0-3 hari)</option>
+                            <option value="bloat">Pembengkakan (3-5 hari)</option>
+                            <option value="active" selected>Pembusukan Aktif (5-11 hari)</option>
+                            <option value="advanced">Pembusukan Lanjut (minggu)</option>
+                            <option value="skeletal">Kerangka (bulan+)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="adipocere">Pembentukan Adipocere</label>
+                        <select id="adipocere">
+                            <option value="none">Tidak Ada</option>
+                            <option value="beginning">Mulai Terbentuk</option>
+                            <option value="partial">Sebagian</option>
+                            <option value="full">Terbentuk Penuh</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="biochemNotes">Catatan Biokimia</label>
+                        <textarea id="biochemNotes" placeholder="Observasi biokimia tambahan"></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Dropdown Menu untuk Aksi -->
+            <div class="dropdown">
+                <button class="dropdown-btn" onclick="toggleDropdown()">
+                    <span>Opsi Perhitungan</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="dropdown-content" id="dropdownContent">
+                    <a href="#" onclick="calculatePMI()"><i class="fas fa-calculator"></i> Hitung PMI</a>
+                    <a href="#" onclick="resetForm()"><i class="fas fa-redo"></i> Reset Formulir</a>
+                    <a href="#" onclick="saveDraft()"><i class="fas fa-save"></i> Simpan Draft</a>
+                    <a href="#" onclick="sendToWhatsApp()"><i class="fab fa-whatsapp"></i> Kirim ke WhatsApp</a>
+                    <a href="#" onclick="generatePDF()"><i class="fas fa-file-pdf"></i> Export PDF</a>
+                </div>
+            </div>
+            
+            <div class="result-container" id="resultContainer">
+                <h2 class="result-title">HASIL ESTIMASI FORENSIK</h2>
+                <div class="result-value" id="pmiResult">0 jam</div>
+                
+                <div class="result-grid">
+                    <div class="result-card">
+                        <h3>Estimasi Primer</h3>
+                        <p><strong>Metode:</strong> <span id="primaryMethod">Algor Mortis dengan koreksi</span></p>
+                        <p><strong>Tingkat Kepercayaan:</strong> <span id="primaryConfidence">Tinggi</span></p>
+                        <p><strong>Kisaran:</strong> <span id="primaryRange">±2 jam</span></p>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>Estimasi Entomologi</h3>
+                        <p><strong>Tahap Serangga:</strong> <span id="insectStageResult">Larva instar 2</span></p>
+                        <p><strong>Perkiraan:</strong> <span id="insectPMI">3-5 hari</span></p>
+                        <p><strong>Spesies:</strong> <span id="insectSpecies">Calliphoridae</span></p>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>Analisis Biokimia</h3>
+                        <p><strong>Kadar Kalium:</strong> <span id="potassiumResult">15.2 mmol/L</span></p>
+                        <p><strong>Perkiraan:</strong> <span id="biochemPMI">24-36 jam</span></p>
+                        <p><strong>Dekomposisi:</strong> <span id="decompStageResult">Pembusukan aktif</span></p>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>Faktor Lingkungan</h3>
+                        <p><strong>Laju Pendinginan:</strong> <span id="coolingRate">0.85°C/jam</span></p>
+                        <p><strong>Kecepatan Pembusukan:</strong> <span id="decompSpeed">Normal</span></p>
+                        <p><strong>Kondisi:</strong> <span id="envConditions">Sedang, outdoor</span></p>
+                    </div>
+                </div>
+                
+                <div class="result-card" style="margin-top: 2rem; grid-column: 1/-1;">
+                    <h3>Estimasi Terintegrasi</h3>
+                    <p><strong>PMI Paling Mungkin:</strong> <span id="finalPMI" style="font-size: 1.4rem; color: var(--primary);">28-34 jam</span></p>
+                    <p><strong>Metode Digunakan:</strong> 
+                        <span class="method-badge">Algor Mortis</span>
+                        <span class="method-badge">Entomologi</span>
+                        <span class="method-badge">Kimia Vitreous</span>
+                        <span class="method-badge">Dekomposisi</span>
+                    </p>
+                    <p><strong>Rekomendasi:</strong> <span id="recommendations">Pertimbangkan pola kolonisasi serangga dan kondisi cuaca terkini untuk estimasi yang lebih presisi. Analisis biokimia mendukung estimasi algor mortis.</span></p>
+                </div>
+                
+                <!-- Container tersembunyi untuk PDF -->
+                <div id="pdfContent" style="display: none;">
+                    <div class="pdf-container">
+                        <div class="pdf-header">
+                            <h1 class="pdf-title">LAPORAN ESTIMASI PMI FORENSIK</h1>
+                            <p class="pdf-subtitle">Dihasilkan oleh Estimator PMI Forensik Digital</p>
+                        </div>
+                        
+                        <div class="pdf-section">
+                            <h2 class="pdf-section-title">Informasi Kasus</h2>
+                            <div class="pdf-result-item">
+                                <span>Tanggal:</span>
+                                <span id="pdf-date"></span>
+                            </div>
+                            <div class="pdf-result-item">
+                                <span>Nama Kasus:</span>
+                                <span><input type="text" id="caseName" placeholder="Masukkan nama kasus" style="border:1px solid #ddd; padding:0.2rem;"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="pdf-section">
+                            <h2 class="pdf-section-title">Hasil Estimasi</h2>
+                            <div class="pdf-result-item">
+                                <strong>Interval Postmortem:</strong>
+                                <span id="pdf-pmi"></span>
+                            </div>
+                            <div class="pdf-result-item">
+                                <strong>Metode Utama:</strong>
+                                <span id="pdf-method"></span>
+                            </div>
+                            <div class="pdf-result-item">
+                                <strong>Tingkat Kepercayaan:</strong>
+                                <span id="pdf-confidence"></span>
+                            </div>
+                            <div class="pdf-result-item">
+                                <strong>Kisaran Estimasi:</strong>
+                                <span id="pdf-range"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="pdf-section">
+                            <h2 class="pdf-section-title">Detail Analisis</h2>
+                            <div class="pdf-result-item">
+                                <strong>Suhu Tubuh:</strong>
+                                <span id="pdf-bodyTemp"></span>
+                            </div>
+                            <div class="pdf-result-item">
+                                <strong>Suhu Lingkungan:</strong>
+                                <span id="pdf-ambientTemp"></span>
+                            </div>
+                            <div class="pdf-result-item">
+                                <strong>Laju Pendinginan:</strong>
+                                <span id="pdf-coolingRate"></span>
+                            </div>
+                            <div class="pdf-result-item">
+                                <strong>Analisis Entomologi:</strong>
+                                <span id="pdf-entomology"></span>
+                            </div>
+                            <div class="pdf-result-item">
+                                <strong>Analisis Biokimia:</strong>
+                                <span id="pdf-biochem"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="pdf-section">
+                            <h2 class="pdf-section-title">Rekomendasi</h2>
+                            <p id="pdf-recommendations" style="text-align: justify; line-height: 1.6;"></p>
+                        </div>
+                        
+                        <div class="footer-note">
+                            <p>Dokumen ini dihasilkan secara otomatis oleh Sistem Estimasi PMI Forensik. Hasil merupakan estimasi dan harus diverifikasi oleh ahli forensik.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer Section -->
+    <footer class="footer">
+        <div class="footer-content">
+            <span class="footer-text">
+                <i class="fas fa-copyright"></i> 
+                <a>2025 Polres Bekasi</a> <p>Laboratorium Forensik Kabupaten Bekasi</p>
+        </div>
+    </footer>
+
+    <script>
+        // Fungsi untuk tab
+        function openTab(tabName) {
+            const tabContents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+            
+            const tabButtons = document.getElementsByClassName('tab-btn');
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove('active');
+            }
+            
+            document.getElementById(tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+            
+            // 3D tilt effect
+            tiltAppContainer();
+        }
+        
+        // 3D tilt effect
+        function tiltAppContainer() {
+            const appContainer = document.getElementById('appContainer');
+            appContainer.style.transform = 'rotateY(5deg) rotateX(-3deg)';
+            setTimeout(() => {
+                appContainer.style.transform = 'rotateY(0) rotateX(0)';
+            }, 300);
+        }
+        
+        // Fungsi untuk toggle dropdown
+        function toggleDropdown() {
+            const dropdown = document.getElementById("dropdownContent");
+            dropdown.classList.toggle("show");
+            const btn = document.querySelector(".dropdown-btn");
+            btn.classList.toggle("open");
+        }
+        
+        // Tutup dropdown ketika klik di luar
+        window.onclick = function(event) {
+            if (!event.target.matches('.dropdown-btn')) {
+                const dropdowns = document.getElementsByClassName("dropdown-content");
+                for (let i = 0; i < dropdowns.length; i++) {
+                    const openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                        document.querySelector(".dropdown-btn").classList.remove("open");
+                    }
+                }
+            }
+        }
+        
+        // Fungsi untuk reset form
+        function resetForm() {
+            if (confirm("Apakah Anda yakin ingin mengosongkan semua data?")) {
+                const formInputs = document.querySelectorAll('input, select, textarea');
+                formInputs.forEach(input => {
+                    if (input.type !== 'button' && input.id !== 'caseName') {
+                        input.value = '';
+                        if (input.type === 'select-one') {
+                            input.selectedIndex = 0;
+                        }
+                    }
+                });
+                
+                const resultContainer = document.getElementById("resultContainer");
+                resultContainer.style.display = "none";
+                resultContainer.classList.remove("show");
+            }
+            toggleDropdown();
+        }
+        
+        // Fungsi untuk save draft (simpan ke localStorage)
+        function saveDraft() {
+            const formData = {
+                bodyTemp: document.getElementById("bodyTemp").value,
+                ambientTemp: document.getElementById("ambientTemp").value,
+                weight: document.getElementById("weight").value,
+                gender: document.getElementById("gender").value,
+                age: document.getElementById("age").value,
+                clothing: document.getElementById("clothing").value,
+                livor: document.getElementById("livor").value,
+                rigor: document.getElementById("rigor").value,
+                humidity: document.getElementById("humidity").value,
+                location: document.getElementById("location").value,
+                sunExposure: document.getElementById("sunExposure").value,
+                weather: document.getElementById("weather").value,
+                airflow: document.getElementById("airflow").value,
+                insectType: document.getElementById("insectType").value,
+                insectStage: document.getElementById("insectStage").value,
+                insectSize: document.getElementById("insectSize").value,
+                insectCount: document.getElementById("insectCount").value,
+                insectNotes: document.getElementById("insectNotes").value,
+                potassium: document.getElementById("potassium").value,
+                pH: document.getElementById("pH").value,
+                decompStage: document.getElementById("decompStage").value,
+                adipocere: document.getElementById("adipocere").value,
+                biochemNotes: document.getElementById("biochemNotes").value
+            };
+            
+            localStorage.setItem("pmiDraft", JSON.stringify(formData));
+            alert("Draft berhasil disimpan!");
+            toggleDropdown();
+        }
+        
+        // Fungsi untuk load draft
+        function loadDraft() {
+            const savedDraft = localStorage.getItem("pmiDraft");
+            if (savedDraft) {
+                if (confirm("Ada draft tersimpan. Muat sekarang?")) {
+                    const formData = JSON.parse(savedDraft);
+                    
+                    // Isi semua field dari localStorage
+                    for (const key in formData) {
+                        const element = document.getElementById(key);
+                        if (element) {
+                            if (element.tagName === 'SELECT') {
+                                element.value = formData[key];
+                            } else {
+                                element.value = formData[key];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Fungsi untuk generate PDF
+        function generatePDF() {
+            preparePDFData();
+            const element = document.getElementById("pdfContent");
+            const opt = {
+                margin: 10,
+                filename: 'estimasi_pmi_forensik.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            html2pdf().set(opt).from(element).save();
+            toggleDropdown();
+        }
+        
+        // Fungsi untuk mengisi data PDF
+        function preparePDFData() {
+            // Tanggal saat ini
+            const now = new Date();
+            document.getElementById('pdf-date').textContent = now.toLocaleDateString('id-ID', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            // Data dari hasil perhitungan
+            document.getElementById('pdf-pmi').textContent = document.getElementById('pmiResult').textContent;
+            document.getElementById('pdf-method').textContent = document.getElementById('primaryMethod').textContent;
+            document.getElementById('pdf-confidence').textContent = document.getElementById('primaryConfidence').textContent;
+            document.getElementById('pdf-range').textContent = document.getElementById('primaryRange').textContent;
+            
+            // Data input
+            document.getElementById('pdf-bodyTemp').textContent = document.getElementById('bodyTemp').value + ' °C';
+            document.getElementById('pdf-ambientTemp').textContent = document.getElementById('ambientTemp').value + ' °C';
+            document.getElementById('pdf-coolingRate').textContent = document.getElementById('coolingRate').textContent;
+            
+            // Data entomologi
+            const insectData = `Spesies: ${document.getElementById('insectSpecies').textContent}, 
+                              Tahap: ${document.getElementById('insectStageResult').textContent}, 
+                              Estimasi: ${document.getElementById('insectPMI').textContent}`;
+            document.getElementById('pdf-entomology').textContent = insectData;
+            
+            // Data biokimia
+            const biochemData = `Kalium: ${document.getElementById('potassiumResult').textContent}, 
+                               Tahap Dekomposisi: ${document.getElementById('decompStageResult').textContent}`;
+            document.getElementById('pdf-biochem').textContent = biochemData;
+            
+            // Rekomendasi
+            document.getElementById('pdf-recommendations').textContent = document.getElementById('recommendations').textContent;
+        }
+        
+        // Fungsi untuk kirim ke WhatsApp
+        function sendToWhatsApp() {
+            preparePDFData();
+            const caseName = document.getElementById('caseName').value || 'Estimasi PMI Forensik';
+            const pmiResult = document.getElementById('pmiResult').textContent;
+            const date = document.getElementById('pdf-date').textContent;
+            
+            // Format pesan WhatsApp
+            const message = `*${caseName}*\n\n` +
+                           `*Hasil Estimasi PMI:* ${pmiResult}\n` +
+                           `*Tanggal:* ${date}\n\n` +
+                           `_Laporan lengkap tersedia dalam format PDF_`;
+            
+            // Encode message untuk URL
+            const encodedMessage = encodeURIComponent(message);
+            window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+            
+            toggleDropdown();
+        }
+        
+        // Fungsi utama perhitungan PMI
+        function calculatePMI() {
+            // Basic parameters
+            const bodyTemp = parseFloat(document.getElementById('bodyTemp').value);
+            const ambientTemp = parseFloat(document.getElementById('ambientTemp').value);
+            const weight = parseFloat(document.getElementById('weight').value);
+            const gender = document.getElementById('gender').value;
+            const age = parseInt(document.getElementById('age').value);
+            const clothing = document.getElementById('clothing').value;
+            const livor = document.getElementById('livor').value;
+            const rigor = document.getElementById('rigor').value;
+            
+            // Environmental factors
+            const humidity = parseInt(document.getElementById('humidity').value) || 50;
+            const location = document.getElementById('location').value;
+            const sunExposure = document.getElementById('sunExposure').value;
+            const weather = document.getElementById('weather').value;
+            const airflow = document.getElementById('airflow').value;
+            
+            // Entomology data
+            const insectType = document.getElementById('insectType').value;
+            const insectStage = document.getElementById('insectStage').value;
+            const insectSize = parseInt(document.getElementById('insectSize').value) || 0;
+            const insectCount = document.getElementById('insectCount').value;
+            
+            // Biochemical data
+            const potassium = parseFloat(document.getElementById('potassium').value);
+            const pH = parseFloat(document.getElementById('pH').value);
+            const decompStage = document.getElementById('decompStage').value;
+            const adipocere = document.getElementById('adipocere').value;
+            
+            // Validate required inputs
+            if (isNaN(bodyTemp) || isNaN(ambientTemp) || isNaN(weight) || isNaN(age)) {
+                alert("Harap isi semua field yang diperlukan di tab Parameter Dasar");
+                openTab('basic');
+                toggleDropdown();
+                return;
+            }
+            
+            // 1. Calculate using Algor Mortis (cooling)
+            let algorMortisPMI = calculateAlgorMortis(bodyTemp, ambientTemp, weight, gender, age, clothing, humidity, location);
+            
+            // 2. Calculate using Livor and Rigor Mortis
+            let livorRigorPMI = calculateLivorRigorPMI(livor, rigor);
+            
+            // 3. Calculate using Entomology
+            let entomologyPMI = calculateEntomologyPMI(insectType, insectStage, insectSize, ambientTemp);
+            
+            // 4. Calculate using Biochemical methods
+            let biochemPMI = calculateBiochemPMI(potassium, pH, decompStage);
+            
+            // Combine all methods for final estimation
+            let finalPMI = integrateAllMethods(algorMortisPMI, livorRigorPMI, entomologyPMI, biochemPMI, 
+                                             bodyTemp, ambientTemp, decompStage);
+            
+            // Display results
+            displayResults(algorMortisPMI, entomologyPMI, biochemPMI, finalPMI, 
+                         insectType, insectStage, potassium, decompStage);
+            
+            // Show results with animation
+            document.getElementById('resultContainer').classList.add('show');
+            
+            // Scroll to results
+            document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth' });
+            
+            toggleDropdown();
+        }
+        
+        function calculateAlgorMortis(bodyTemp, ambientTemp, weight, gender, age, clothing, humidity, location) {
+            // Base cooling rate (°C per hour)
+            let coolingRate = 0.8;
+            
+            // Adjust for weight
+            if (weight < 50) coolingRate *= 1.25; // Thin people cool faster
+            else if (weight > 90) coolingRate *= 0.75; // Heavy people cool slower
+            
+            // Adjust for gender
+            if (gender === 'female') coolingRate *= 0.9; // Women generally cool slightly slower
+            
+            // Adjust for age
+            if (age < 18 || age > 65) coolingRate *= 1.15; // Children and elderly cool faster
+            
+            // Adjust for clothing
+            switch(clothing) {
+                case 'naked': coolingRate *= 1.4; break;
+                case 'light': coolingRate *= 1.2; break;
+                case 'heavy': coolingRate *= 0.6; break;
+                default: coolingRate *= 1.0; // medium
+            }
+            
+            // Adjust for humidity
+            if (humidity > 70) coolingRate *= 1.1; // High humidity increases cooling
+            else if (humidity < 30) coolingRate *= 0.9; // Dry air slows cooling
+            
+            // Adjust for location
+            switch(location) {
+                case 'water': coolingRate *= 2.0; break; // Water cools much faster
+                case 'buried': coolingRate *= 0.7; break; // Burial slows cooling
+                default: break; // indoors/outdoors
+            }
+            
+            // Calculate PMI using Newton's Law of Cooling with corrections
+            const normalBodyTemp = 37.0; // Standard living body temperature
+            const tempDifference = normalBodyTemp - bodyTemp;
+            
+            // Simple linear estimation (basic Algor Mortis)
+            const simplePMI = tempDifference / coolingRate;
+            
+            // More complex exponential model (Marshall-Hoare approximation)
+            const k = 0.1 * (1/coolingRate); // Cooling constant
+            let exponentialPMI = 0;
+            
+            if (bodyTemp > ambientTemp) {
+                exponentialPMI = Math.log((bodyTemp - ambientTemp)/(normalBodyTemp - ambientTemp)) / (-k);
+            }
+            
+            // Average the two methods for better accuracy
+            let finalPMI = exponentialPMI > 0 ? (simplePMI + exponentialPMI) / 2 : simplePMI;
+            
+            // Ensure PMI isn't negative
+            finalPMI = Math.max(0, finalPMI);
+            
+            return {
+                pmi: finalPMI,
+                coolingRate: coolingRate,
+                method: "Algor Mortis dengan koreksi lingkungan",
+                confidence: tempDifference > 10 ? "Tinggi" : tempDifference > 5 ? "Sedang" : "Rendah",
+                range: `±${Math.max(1, Math.round(finalPMI * 0.15))} jam`
+            };
+        }
+        
+        function calculateLivorRigorPMI(livor, rigor) {
+            let pmi = 0;
+            let method = "Livor/Rigor Mortis";
+            let confidence = "Sedang";
+            
+            // Livor Mortis estimation
+            const livorData = {
+                'none': { min: 0, max: 2 },
+                'beginning': { min: 2, max: 4 },
+                'fixed': { min: 8, max: 12 },
+                'advanced': { min: 12, max: 24 }
+            };
+            
+            // Rigor Mortis estimation
+            const rigorData = {
+                'none': { min: 0, max: 2 },
+                'beginning': { min: 2, max: 6 },
+                'full': { min: 12, max: 24 },
+                'released': { min: 24, max: 48 }
+            };
+            
+            // Get estimates from both methods
+            const livorEstimate = livorData[livor] || livorData['none'];
+            const rigorEstimate = rigorData[rigor] || rigorData['none'];
+            
+            // Average the estimates
+            const livorAvg = (livorEstimate.min + livorEstimate.max) / 2;
+            const rigorAvg = (rigorEstimate.min + rigorEstimate.max) / 2;
+            
+            // Weighted average (give more weight to rigor mortis in early stages)
+            if (rigor === 'none' || rigor === 'beginning') {
+                pmi = (livorAvg * 0.4 + rigorAvg * 0.6);
+                confidence = "Sedang";
+            } else {
+                pmi = (livorAvg * 0.6 + rigorAvg * 0.4);
+                confidence = "Tinggi";
+            }
+            
+            // If both suggest similar ranges, increase confidence
+            if (Math.abs(livorAvg - rigorAvg) < 4) {
+                confidence = "Tinggi";
+            }
+            
+            return {
+                pmi: pmi,
+                method: method,
+                confidence: confidence,
+                range: `${livorEstimate.min}-${rigorEstimate.max} jam`
+            };
+        }
+        
+        function calculateEntomologyPMI(insectType, insectStage, insectSize, ambientTemp) {
+            if (insectType === 'none' || insectStage === 'none') {
+                return {
+                    pmi: 0,
+                    method: "Tidak ada data entomologi",
+                    confidence: "Tidak tersedia",
+                    range: "Tidak tersedia"
+                };
+            }
+            
+            // Base development times at 25°C for different species
+            const speciesData = {
+                'calliphoridae': {
+                    'eggs': { min: 6, max: 12 },
+                    'larvae1': { min: 12, max: 24 },
+                    'larvae2': { min: 24, max: 48 },
+                    'larvae3': { min: 48, max: 96 },
+                    'pupae': { min: 120, max: 240 },
+                    'adults': { min: 240, max: 500 }
+                },
+                'muscidae': {
+                    'eggs': { min: 8, max: 16 },
+                    'larvae1': { min: 16, max: 32 },
+                    'larvae2': { min: 32, max: 64 },
+                    'larvae3': { min: 64, max: 120 },
+                    'pupae': { min: 144, max: 288 },
+                    'adults': { min: 288, max: 600 }
+                },
+                'sarcophagidae': {
+                    'eggs': { min: 0, max: 0 }, // Sarcophagidae are larviparous
+                    'larvae1': { min: 6, max: 12 },
+                    'larvae2': { min: 12, max: 24 },
+                    'larvae3': { min: 24, max: 48 },
+                    'pupae': { min: 96, max: 192 },
+                    'adults': { min: 192, max: 400 }
+                },
+                'coleoptera': {
+                    'eggs': { min: 24, max: 48 },
+                    'larvae1': { min: 72, max: 144 },
+                    'larvae2': { min: 144, max: 288 },
+                    'larvae3': { min: 288, max: 576 },
+                    'pupae': { min: 576, max: 1008 },
+                    'adults': { min: 1008, max: 2000 }
+                }
+            };
+            
+            // Get base development time
+            const baseTime = speciesData[insectType]?.[insectStage] || speciesData['calliphoridae']['larvae2'];
+            
+            // Adjust for temperature (using thermal summation model)
+            const tempAdjustment = calculateTempAdjustment(ambientTemp);
+            const minHours = baseTime.min * tempAdjustment;
+            const maxHours = baseTime.max * tempAdjustment;
+            
+            // Adjust for larval size if available
+            let sizeAdjustment = 1;
+            if (insectSize > 0) {
+                const expectedSize = getExpectedSize(insectType, insectStage);
+                if (expectedSize > 0) {
+                    sizeAdjustment = Math.min(1.5, Math.max(0.7, insectSize / expectedSize));
+                    // Larger than expected = slower development (longer PMI)
+                    // Smaller than expected = faster development (shorter PMI)
+                }
+            }
+            
+            const adjustedMin = minHours * sizeAdjustment;
+            const adjustedMax = maxHours * sizeAdjustment;
+            
+            return {
+                pmi: (adjustedMin + adjustedMax) / 2,
+                method: "Analisis entomologi",
+                confidence: insectCount === 'many' || insectCount === 'massive' ? "Tinggi" : "Sedang",
+                range: `${Math.round(adjustedMin)}-${Math.round(adjustedMax)} jam`,
+                species: getSpeciesName(insectType),
+                stage: getStageName(insectStage)
+            };
+        }
+        
+        function calculateTempAdjustment(ambientTemp) {
+            // Temperature adjustment factor (1.0 at 25°C)
+            if (ambientTemp >= 30) return 0.7; // Faster development in heat
+            if (ambientTemp >= 25) return 0.9;
+            if (ambientTemp >= 20) return 1.0;
+            if (ambientTemp >= 15) return 1.3; // Slower in cool temps
+            if (ambientTemp >= 10) return 1.7;
+            return 2.0; // Very slow in cold
+        }
+        
+        function getExpectedSize(insectType, insectStage) {
+            // Average sizes in mm for different stages
+            const sizes = {
+                'calliphoridae': {
+                    'larvae1': 2,
+                    'larvae2': 7,
+                    'larvae3': 15
+                },
+                'muscidae': {
+                    'larvae1': 3,
+                    'larvae2': 8,
+                    'larvae3': 12
+                },
+                'sarcophagidae': {
+                    'larvae1': 4,
+                    'larvae2': 10,
+                    'larvae3': 18
+                }
+            };
+            
+            return sizes[insectType]?.[insectStage] || 0;
+        }
+        
+        function getSpeciesName(insectType) {
+            const names = {
+                'calliphoridae': 'Lalat Blow (Calliphoridae)',
+                'muscidae': 'Lalat Rumah (Muscidae)',
+                'sarcophagidae': 'Lalat Daging (Sarcophagidae)',
+                'coleoptera': 'Kumbang (Coleoptera)'
+            };
+            return names[insectType] || 'Spesies tidak diketahui';
+        }
+        
+        function getStageName(insectStage) {
+            const names = {
+                'eggs': 'Telur',
+                'larvae1': 'Larva instar 1',
+                'larvae2': 'Larva instar 2',
+                'larvae3': 'Larva instar 3',
+                'pupae': 'Kepompong',
+                'adults': 'Lalat dewasa'
+            };
+            return names[insectStage] || 'Tahap tidak diketahui';
+        }
+        
+        function calculateBiochemPMI(potassium, pH, decompStage) {
+            if (isNaN(potassium)) {
+                // Fallback to decomposition stage if no potassium data
+                const decompData = {
+                    'fresh': { min: 0, max: 72 },
+                    'bloat': { min: 72, max: 120 },
+                    'active': { min: 120, max: 264 },
+                    'advanced': { min: 264, max: 720 },
+                    'skeletal': { min: 720, max: 10000 }
+                };
+                
+                const estimate = decompData[decompStage] || decompData['fresh'];
+                return {
+                    pmi: (estimate.min + estimate.max) / 2,
+                    method: "Tahap dekomposisi",
+                    confidence: "Sedang",
+                    range: `${estimate.min}-${estimate.max} jam`
+                };
+            }
+            
+            // Calculate PMI from vitreous potassium (Sturner's formula modified)
+            // PMI (hours) = 7.14 × [K⁺] - 39.1
+            let pmi = (7.14 * potassium) - 39.1;
+            
+            // Adjust for decomposition stage
+            switch(decompStage) {
+                case 'fresh': pmi *= 0.9; break;
+                case 'bloat': pmi *= 1.0; break;
+                case 'active': pmi *= 1.1; break;
+                case 'advanced': pmi *= 1.3; break;
+                case 'skeletal': pmi *= 1.5; break;
+            }
+            
+            // Adjust for pH if available
+            if (!isNaN(pH)) {
+                if (pH < 6.0) pmi *= 1.2; // Acidic environment accelerates changes
+                else if (pH > 7.5) pmi *= 0.8; // Alkaline slows changes
+            }
+            
+            // Calculate confidence
+            let confidence = "Sedang";
+            if (potassium > 10 && potassium < 20) confidence = "Tinggi";
+            else if (potassium < 5 || potassium > 25) confidence = "Rendah";
+            
+            return {
+                pmi: pmi,
+                method: "Kalium humor vitreous",
+                confidence: confidence,
+                range: `${Math.round(pmi * 0.8)}-${Math.round(pmi * 1.2)} jam`
+            };
+        }
+        
+        function integrateAllMethods(algorMortis, livorRigor, entomology, biochem, bodyTemp, ambientTemp, decompStage) {
+            // Collect all valid PMI estimates
+            const estimates = [];
+            let weights = [];
+            let methods = [];
+            
+            // 1. Algor Mortis (most reliable in first 24 hours)
+            if (algorMortis.pmi > 0) {
+                let weight = 0.6; // Base weight
+                
+                // Reduce weight if body is near ambient temperature
+                if (bodyTemp - ambientTemp < 2) weight *= 0.5;
+                
+                // Reduce weight if decomposition is advanced
+                if (decompStage === 'advanced' || decompStage === 'skeletal') weight *= 0.3;
+                
+                estimates.push(algorMortis.pmi);
+                weights.push(weight);
+                methods.push(algorMortis.method);
+            }
+            
+            // 2. Livor/Rigor Mortis (reliable in early stages)
+            if (livorRigor.pmi > 0 && livorRigor.pmi < 48) {
+                let weight = 0.5;
+                estimates.push(livorRigor.pmi);
+                weights.push(weight);
+                methods.push(livorRigor.method);
+            }
+            
+            // 3. Entomology (becomes more reliable after 24 hours)
+            if (entomology.pmi > 0) {
+                let weight = 0.7;
+                
+                // Increase weight if decomposition is advanced
+                if (decompStage === 'advanced' || decompStage === 'skeletal') weight *= 1.3;
+                
+                // Reduce weight if insect activity is minimal
+                if (document.getElementById('insectCount').value === 'few') weight *= 0.6;
+                
+                estimates.push(entomology.pmi);
+                weights.push(weight);
+                methods.push(entomology.method);
+            }
+            
+            // 4. Biochemical methods
+            if (biochem.pmi > 0) {
+                let weight = 0.6;
+                
+                // Increase weight if we have potassium data
+                if (!isNaN(document.getElementById('potassium').value)) weight *= 1.2;
+                
+                estimates.push(biochem.pmi);
+                weights.push(weight);
+                methods.push(biochem.method);
+            }
+            
+            // If no valid estimates, return 0
+            if (estimates.length === 0) return {
+                pmi: 0,
+                range: "Tidak dapat diestimasi",
+                methods: "Tidak ada data valid",
+                confidence: "Tidak tersedia"
+            };
+            
+            // Calculate weighted average
+            let weightedSum = 0;
+            let totalWeight = 0;
+            for (let i = 0; i < estimates.length; i++) {
+                weightedSum += estimates[i] * weights[i];
+                totalWeight += weights[i];
+            }
+            
+            const averagePMI = weightedSum / totalWeight;
+            
+            // Calculate range based on method agreement
+            const minPMI = Math.min(...estimates);
+            const maxPMI = Math.max(...estimates);
+            
+            // Determine confidence
+            let confidence = "Sedang";
+            const rangeRatio = (maxPMI - minPMI) / averagePMI;
+            
+            if (rangeRatio < 0.3) confidence = "Tinggi";
+            else if (rangeRatio > 0.7) confidence = "Rendah";
+            
+            // For very early PMI (<12 hours), algor mortis gets priority
+            if (averagePMI < 12 && algorMortis.pmi > 0) {
+                return {
+                    pmi: algorMortis.pmi,
+                    range: algorMortis.range,
+                    methods: algorMortis.method,
+                    confidence: algorMortis.confidence
+                };
+            }
+            
+            return {
+                pmi: averagePMI,
+                range: `${Math.round(minPMI)}-${Math.round(maxPMI)} jam`,
+                methods: methods.join(" + "),
+                confidence: confidence
+            };
+        }
+        
+        function displayResults(algorMortis, entomology, biochem, final, insectType, insectStage, potassium, decompStage) {
+            // Primary Algor Mortis results
+            document.getElementById('pmiResult').textContent = formatPMI(final.pmi);
+            document.getElementById('primaryMethod').textContent = algorMortis.method;
+            document.getElementById('primaryConfidence').textContent = final.confidence;
+            document.getElementById('primaryRange').textContent = final.range;
+            document.getElementById('coolingRate').textContent = algorMortis.coolingRate.toFixed(2) + "°C/jam";
+            
+            // Entomology results
+            if (entomology.pmi > 0) {
+                document.getElementById('insectStageResult').textContent = entomology.stage;
+                document.getElementById('insectPMI').textContent = entomology.range;
+                document.getElementById('insectSpecies').textContent = entomology.species;
+            } else {
+                document.getElementById('insectStageResult').textContent = "Tidak ada data";
+                document.getElementById('insectPMI').textContent = "Tidak tersedia";
+                document.getElementById('insectSpecies').textContent = "Tidak ditemukan";
+            }
+            
+            // Biochemical results
+            if (biochem.pmi > 0) {
+                document.getElementById('potassiumResult').textContent = 
+                    isNaN(potassium) ? "Tidak diukur" : potassium.toFixed(1) + " mmol/L";
+                document.getElementById('biochemPMI').textContent = biochem.range;
+                document.getElementById('decompStageResult').textContent = 
+                    document.getElementById('decompStage').options[document.getElementById('decompStage').selectedIndex].text;
+            } else {
+                document.getElementById('potassiumResult').textContent = "Tidak diukur";
+                document.getElementById('biochemPMI').textContent = "Tidak tersedia";
+                document.getElementById('decompStageResult').textContent = "Tidak dinilai";
+            }
+            
+            // Environmental factors
+            const locationText = document.getElementById('location').options[document.getElementById('location').selectedIndex].text;
+            const weatherText = document.getElementById('weather').options[document.getElementById('weather').selectedIndex].text;
+            document.getElementById('envConditions').textContent = 
+                `${locationText}, ${weatherText}, ${document.getElementById('humidity').value || '50'}% kelembaban`;
+            
+            // Decomposition speed
+            let decompSpeed = "Normal";
+            const ambientTemp = parseFloat(document.getElementById('ambientTemp').value);
+            if (ambientTemp > 30) decompSpeed = "Cepat";
+            else if (ambientTemp < 10) decompSpeed = "Lambat";
+            document.getElementById('decompSpeed').textContent = decompSpeed;
+            
+            // Final integrated estimation
+            document.getElementById('finalPMI').textContent = final.range;
+            
+            // Recommendations
+            let recommendations = "";
+            if (final.confidence === "Rendah") {
+                recommendations = "Tingkat kepercayaan estimasi rendah karena indikator yang bertentangan. ";
+                
+                if (algorMortis.pmi < 12 && entomology.pmi > 48) {
+                    recommendations += "Tubuh mungkin telah dipindahkan setelah kematian. ";
+                }
+                
+                if (document.getElementById('adipocere').value !== 'none') {
+                    recommendations += "Pembentukan adipocere menunjukkan periode postmortem yang panjang dalam kondisi lembab. ";
+                }
+            } else {
+                recommendations = "Estimasi konsisten di berbagai metode. ";
+            }
+            
+            if (decompStage === 'skeletal') {
+                recommendations += "Sisa kerangka menunjukkan PMI berminggu-minggu hingga berbulan-bulan. Pertimbangkan analisis antropologi untuk penanggalan yang lebih tepat.";
+            } else if (decompStage === 'advanced') {
+                recommendations += "Dekomposisi lanjut membatasi metode berbasis suhu. Entomologi memberikan estimasi terbaik.";
+            }
+            
+            document.getElementById('recommendations').textContent = recommendations;
+        }
+        
+        function formatPMI(hours) {
+            if (hours < 1) {
+                const minutes = Math.round(hours * 60);
+                return minutes + " menit";
+            } else if (hours < 24) {
+                const rounded = Math.round(hours * 10) / 10;
+                return rounded + " jam";
+            } else {
+                const days = Math.floor(hours / 24);
+                const remainingHours = Math.round((hours % 24) * 10) / 10;
+                return days + " hari" + 
+                       (remainingHours > 0 ? " " + remainingHours + " jam" : "");
+            }
+        }
+        
+        // Panggil loadDraft saat halaman dimuat
+        window.onload = function() {
+            loadDraft();
+        };
+    </script>
+</body>
+</html>
